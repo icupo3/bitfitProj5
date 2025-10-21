@@ -13,17 +13,24 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.launch
 import com.example.bitfitproj5.databinding.ActivityMainBinding
 import android.util.Log
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.flow.first
 
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var foodsRecyclerView: RecyclerView
     private lateinit var binding: ActivityMainBinding
-    private val foods = mutableListOf<Food>()
 
+    private fun replaceFragment(fragment: Fragment) {
+        val fragmentManager = supportFragmentManager
+        val fragmentTransaction = fragmentManager.beginTransaction()
+        fragmentTransaction.replace(R.id.main_frame_layout, fragment)
+        fragmentTransaction.commit()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,42 +39,29 @@ class MainActivity : AppCompatActivity() {
         val view = binding.root
         setContentView(view)
 
-        foodsRecyclerView = findViewById(R.id.foods)
-        val foodAdapter = FoodAdapter(this, foods)
-        foodsRecyclerView.adapter = foodAdapter
 
-        lifecycleScope.launch {
-            val allFoods = (application as FoodApplication).db.foodDao().getAll().first()
-            for (food in allFoods) {
-                Log.d("DB_CHECK", "Food: ${food.name}, Calories: ${food.calories}")
+        val fragmentManager : FragmentManager = supportFragmentManager
+        val foodsFragment : FoodsFragment = FoodsFragment()
+        val dashboardFragment : DashboardFragment = DashboardFragment()
+        replaceFragment(foodsFragment)
+
+        val bottomNavigationView: BottomNavigationView = findViewById(R.id.bottom_navigation)
+
+        bottomNavigationView.setOnItemSelectedListener { item ->
+            lateinit var fragment: Fragment
+            when (item.itemId) {
+                R.id.action_favorites -> fragment = foodsFragment
+                R.id.action_schedules -> fragment = dashboardFragment // replace with dashboardFragment
+                else -> null
             }
+            fragment?.let { replaceFragment(it) }
+            true
         }
-
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                (application as FoodApplication).db.foodDao().getAll().collect { databaseList ->
-                    val mappedList = databaseList.map { entity ->
-                        Food(entity.name, entity.calories)
-                    }
-                    foods.clear()
-                    foods.addAll(mappedList)
-                    foodAdapter.notifyDataSetChanged()
-                }
-            }
-        }
-
-
-        foodsRecyclerView.layoutManager = LinearLayoutManager(this).also {
-            val dividerItemDecoration = DividerItemDecoration(this, it.orientation)
-            foodsRecyclerView.addItemDecoration(dividerItemDecoration)
-        }
-
 
         binding.addFoodBTN.setOnClickListener {
             val intent = Intent(this, DetailActivity::class.java)
             startActivity(intent)
         }
-
     }
 }
 
